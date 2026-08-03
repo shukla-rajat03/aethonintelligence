@@ -13,13 +13,10 @@ def _submit_button(driver):
 
 
 def test_register_page_loads(driver, base_url):
-    import time
     driver.get(f'{base_url}{REGISTER_PATH}')
-    WebDriverWait(driver, 20).until(
+    email = WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    time.sleep(1.5)
-    email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
     assert email.is_displayed()
     passwords = driver.find_elements(By.CSS_SELECTOR, "input[type='password']")
     assert len(passwords) >= 1
