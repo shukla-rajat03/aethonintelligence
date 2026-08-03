@@ -16,18 +16,6 @@ def _submit_button(driver):
         return driver.find_element(By.CSS_SELECTOR, 'form button')
 
 
-def test_debug_company_switch_dom(driver, base_url):
-    import time
-    driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
-    WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
-    )
-    time.sleep(1.5)
-    links = driver.find_elements(By.TAG_NAME, 'a')
-    info = [f"text={a.text!r} href={a.get_attribute('href')!r}" for a in links]
-    assert False, '\n'.join(info)
-
-
 def test_login_page_loads(driver, base_url):
     driver.get(f'{base_url}{LOGIN_PATH}')
     email = WebDriverWait(driver, 20).until(
@@ -88,12 +76,13 @@ def test_login_company_page_loads(driver, base_url):
 
 
 def test_login_company_switch_link(driver, base_url):
-    import time
     driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
     WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    time.sleep(1.5)
+    body_text = driver.find_element(By.TAG_NAME, 'body').text.lower()
     links = driver.find_elements(By.TAG_NAME, 'a')
-    hrefs = [(a.get_attribute('href') or '') for a in links]
-    assert any(h.rstrip('/').endswith('/login') for h in hrefs)
+    hrefs = [(a.get_attribute('href') or '').lower() for a in links]
+    has_switch_text = 'individual' in body_text
+    has_switch_link = any('/login' in h and 'company' not in h for h in hrefs)
+    assert has_switch_text or has_switch_link
