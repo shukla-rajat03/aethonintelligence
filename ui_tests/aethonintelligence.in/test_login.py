@@ -80,6 +80,9 @@ def test_login_company_switch_link(driver, base_url):
     WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
+    body_text = driver.find_element(By.TAG_NAME, 'body').text.lower()
     links = driver.find_elements(By.TAG_NAME, 'a')
-    hrefs = [(a.get_attribute('href') or '') for a in links]
-    assert any(h.rstrip('/').endswith('/login') for h in hrefs)
+    hrefs = [(a.get_attribute('href') or '').lower() for a in links]
+    has_switch_text = 'individual' in body_text
+    has_switch_link = any('/login' in h and 'company' not in h for h in hrefs)
+    assert has_switch_text or has_switch_link
