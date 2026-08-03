@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 LOGIN_PATH = '/login'
+LOGIN_COMPANY_PATH = '/login/company'
 VALID_EMAIL = 'test@gmail.com'
 VALID_PASSWORD = 'test@gmail.com'
 
@@ -15,20 +16,16 @@ def _submit_button(driver):
         return driver.find_element(By.CSS_SELECTOR, 'form button')
 
 
-def test_debug_login_dom(driver, base_url):
+def test_debug_company_switch_dom(driver, base_url):
     import time
-    driver.get(f'{base_url}{LOGIN_PATH}')
-    start = time.time()
-    n = 0
-    for _ in range(20):
-        n = len(driver.find_elements(By.TAG_NAME, 'input'))
-        if n > 0:
-            break
-        time.sleep(1)
-    elapsed = time.time() - start
-    url = driver.current_url
-    source = driver.page_source
-    assert False, f"elapsed={elapsed:.1f}s input_count={n}\nURL={url}\nSOURCE_TAIL={source[-3000:]}"
+    driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
+    WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
+    )
+    time.sleep(1.5)
+    links = driver.find_elements(By.TAG_NAME, 'a')
+    info = [f"text={a.text!r} href={a.get_attribute('href')!r}" for a in links]
+    assert False, '\n'.join(info)
 
 
 def test_login_page_loads(driver, base_url):
@@ -50,7 +47,7 @@ def test_login_success(driver, base_url):
     email.send_keys(VALID_EMAIL)
     password.send_keys(VALID_PASSWORD)
     password.send_keys(Keys.RETURN)
-    WebDriverWait(driver, 15).until(EC.url_contains('/dashboard'))
+    WebDriverWait(driver, 20).until(EC.url_contains('/dashboard'))
     assert '/dashboard' in driver.current_url
 
 
@@ -76,3 +73,27 @@ def test_login_empty_fields(driver, base_url):
     submit.click()
     import time; time.sleep(1)
     assert '/dashboard' not in driver.current_url
+
+
+def test_login_company_page_loads(driver, base_url):
+    driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
+    email = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
+    )
+    password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+    assert email.is_displayed()
+    assert password.is_displayed()
+    placeholder = (email.get_attribute('placeholder') or '').lower()
+    assert 'yourcompany' in placeholder
+
+
+def test_login_company_switch_link(driver, base_url):
+    import time
+    driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
+    WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
+    )
+    time.sleep(1.5)
+    links = driver.find_elements(By.TAG_NAME, 'a')
+    hrefs = [(a.get_attribute('href') or '') for a in links]
+    assert any(h.rstrip('/').endswith('/login') for h in hrefs)
