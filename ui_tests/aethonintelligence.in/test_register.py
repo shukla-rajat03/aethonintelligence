@@ -12,27 +12,14 @@ def _submit_button(driver):
         return driver.find_element(By.CSS_SELECTOR, 'form button')
 
 
-def test_debug_register_dom(driver, base_url):
+def test_register_page_loads(driver, base_url):
     import time
     driver.get(f'{base_url}{REGISTER_PATH}')
-    start = time.time()
-    n = 0
-    for _ in range(20):
-        n = len(driver.find_elements(By.TAG_NAME, 'input'))
-        if n > 0:
-            break
-        time.sleep(1)
-    elapsed = time.time() - start
-    url = driver.current_url
-    source = driver.page_source
-    assert False, f"elapsed={elapsed:.1f}s input_count={n}\nURL={url}\nSOURCE_TAIL={source[-3000:]}"
-
-
-def test_register_page_loads(driver, base_url):
-    driver.get(f'{base_url}{REGISTER_PATH}')
-    email = WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
+    time.sleep(1.5)
+    email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
     assert email.is_displayed()
     passwords = driver.find_elements(By.CSS_SELECTOR, "input[type='password']")
     assert len(passwords) >= 1
@@ -50,15 +37,18 @@ def test_register_empty_fields_validation(driver, base_url):
 
 
 def test_register_invalid_email_format(driver, base_url):
+    import time
     driver.get(f'{base_url}{REGISTER_PATH}')
-    email = WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
+    time.sleep(1.5)
+    email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
     email.send_keys('not-an-email')
     passwords = driver.find_elements(By.CSS_SELECTOR, "input[type='password']")
     for pw in passwords:
         pw.send_keys('SomePassw0rd!')
     submit = _submit_button(driver)
     submit.click()
-    import time; time.sleep(1)
+    time.sleep(1)
     assert 'register' in driver.current_url.lower()
