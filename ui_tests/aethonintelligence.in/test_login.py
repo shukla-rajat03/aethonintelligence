@@ -16,6 +16,18 @@ def _submit_button(driver):
         return driver.find_element(By.CSS_SELECTOR, 'form button')
 
 
+def test_debug_company_switch_dom(driver, base_url):
+    import time
+    driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
+    WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
+    )
+    time.sleep(1.5)
+    links = driver.find_elements(By.TAG_NAME, 'a')
+    info = [f"text={a.text!r} href={a.get_attribute('href')!r}" for a in links]
+    assert False, '\n'.join(info)
+
+
 def test_login_page_loads(driver, base_url):
     driver.get(f'{base_url}{LOGIN_PATH}')
     email = WebDriverWait(driver, 20).until(
