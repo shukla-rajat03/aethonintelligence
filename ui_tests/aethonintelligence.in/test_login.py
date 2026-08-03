@@ -1,7 +1,9 @@
+import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
 
 LOGIN_PATH = '/login'
 LOGIN_COMPANY_PATH = '/login/company'
@@ -16,39 +18,62 @@ def _submit_button(driver):
         return driver.find_element(By.CSS_SELECTOR, 'form button')
 
 
+def _retry_stale(driver, action, attempts=4, delay=0.6):
+    last_exc = None
+    for _ in range(attempts):
+        try:
+            return action()
+        except (StaleElementReferenceException, NoSuchElementException) as exc:
+            last_exc = exc
+            time.sleep(delay)
+    raise last_exc
+
+
 def test_login_page_loads(driver, base_url):
     driver.get(f'{base_url}{LOGIN_PATH}')
-    email = WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
-    assert email.is_displayed()
-    assert password.is_displayed()
+
+    def check():
+        email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
+        password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+        assert email.is_displayed()
+        assert password.is_displayed()
+    _retry_stale(driver, check)
 
 
 def test_login_success(driver, base_url):
     driver.get(f'{base_url}{LOGIN_PATH}')
-    email = WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
-    email.send_keys(VALID_EMAIL)
-    password.send_keys(VALID_PASSWORD)
-    password.send_keys(Keys.RETURN)
+
+    def fill_and_submit():
+        email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
+        password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+        email.send_keys(VALID_EMAIL)
+        password.send_keys(VALID_PASSWORD)
+        password.send_keys(Keys.RETURN)
+    _retry_stale(driver, fill_and_submit)
     WebDriverWait(driver, 20).until(EC.url_contains('/dashboard'))
     assert '/dashboard' in driver.current_url
 
 
 def test_login_wrong_password(driver, base_url):
     driver.get(f'{base_url}{LOGIN_PATH}')
-    email = WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
-    email.send_keys(VALID_EMAIL)
-    password.send_keys('definitely-wrong-password')
-    password.send_keys(Keys.RETURN)
-    import time; time.sleep(3)
+
+    def fill_and_submit():
+        email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
+        password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+        email.send_keys(VALID_EMAIL)
+        password.send_keys('definitely-wrong-password')
+        password.send_keys(Keys.RETURN)
+    _retry_stale(driver, fill_and_submit)
+    time.sleep(3)
     assert '/dashboard' not in driver.current_url
 
 
@@ -57,22 +82,28 @@ def test_login_empty_fields(driver, base_url):
     WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    submit = _submit_button(driver)
-    submit.click()
-    import time; time.sleep(1)
+
+    def submit():
+        _submit_button(driver).click()
+    _retry_stale(driver, submit)
+    time.sleep(1)
     assert '/dashboard' not in driver.current_url
 
 
 def test_login_company_page_loads(driver, base_url):
     driver.get(f'{base_url}{LOGIN_COMPANY_PATH}')
-    email = WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
-    assert email.is_displayed()
-    assert password.is_displayed()
-    placeholder = (email.get_attribute('placeholder') or '').lower()
-    assert 'yourcompany' in placeholder
+
+    def check():
+        email = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
+        password = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+        assert email.is_displayed()
+        assert password.is_displayed()
+        placeholder = (email.get_attribute('placeholder') or '').lower()
+        assert 'yourcompany' in placeholder
+    _retry_stale(driver, check)
 
 
 def test_login_company_switch_link(driver, base_url):
@@ -80,9 +111,12 @@ def test_login_company_switch_link(driver, base_url):
     WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']"))
     )
-    body_text = driver.find_element(By.TAG_NAME, 'body').text.lower()
-    links = driver.find_elements(By.TAG_NAME, 'a')
-    hrefs = [(a.get_attribute('href') or '').lower() for a in links]
-    has_switch_text = 'individual' in body_text
-    has_switch_link = any('/login' in h and 'company' not in h for h in hrefs)
-    assert has_switch_text or has_switch_link
+
+    def check():
+        body_text = driver.find_element(By.TAG_NAME, 'body').text.lower()
+        links = driver.find_elements(By.TAG_NAME, 'a')
+        hrefs = [(a.get_attribute('href') or '').lower() for a in links]
+        has_switch_text = 'individual' in body_text
+        has_switch_link = any('/login' in h and 'company' not in h for h in hrefs)
+        assert has_switch_text or has_switch_link
+    _retry_stale(driver, check)
